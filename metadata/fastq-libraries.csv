@@ -1,0 +1,3 @@
+﻿fastqs,sample,library_type
+/path/to/fastq,samplename,Gene Expression
+/path/to/fastq,HT_samplename,Antibody Capture

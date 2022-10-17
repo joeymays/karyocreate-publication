@@ -1,0 +1,11 @@
+﻿sample_n,sample_desc,mode,hto_name,hto_short,comment
+1,hCEC KNL1 dCas9 NC,,TotalseqB_humanHTO01,HTO-01,
+2,hCEC KNL1 dCas9 g9-3+g9-5,,TotalseqB_humanHTO02,HTO-02,
+3,hCEC KNL1 dCas9 g13-3+g13-5,,TotalseqB_humanHTO03,HTO-03,
+4,hCEC KNL1 dCas9 g6-2,,TotalseqB_humanHTO04,HTO-04,
+5,hCEC KNL1 dCas9 g8-2,,TotalseqB_humanHTO05,HTO-05,
+6,hCEC KNL1 dCas9 g11-2,,TotalseqB_humanHTO06,HTO-06,
+7,hCEC KNL1 dCas9 g12-2,,TotalseqB_humanHTO07,HTO-07,
+8,hCEC KNL1 dCas9 g9-1,,TotalseqB_humanHTO08,HTO-08,
+9,hCEC KNL1 dCas9 g9-3,,TotalseqB_humanHTO09,HTO-09,
+10,hCEC KNL1 dCas9 g9-5,,TotalseqB_humanHTO10,HTO-10,

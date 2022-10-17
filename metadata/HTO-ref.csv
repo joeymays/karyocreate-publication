@@ -1,0 +1,11 @@
+﻿id,name,read,pattern,sequence,feature_type
+TotalseqB_humanHTO01,TotalseqB_humanHTO01,R2,5PNNNNNNNNNN(BC),GTCAACTCTTTAGCG,Antibody Capture
+TotalseqB_humanHTO02,TotalseqB_humanHTO02,R2,5PNNNNNNNNNN(BC),TGATGGCCTATTGGG,Antibody Capture
+TotalseqB_humanHTO03,TotalseqB_humanHTO03,R2,5PNNNNNNNNNN(BC),TTCCGCCTCTCTTTG,Antibody Capture
+TotalseqB_humanHTO04,TotalseqB_humanHTO04,R2,5PNNNNNNNNNN(BC),AGTAAGTTCAGCGTA,Antibody Capture
+TotalseqB_humanHTO05,TotalseqB_humanHTO05,R2,5PNNNNNNNNNN(BC),AAGTATCGTTTCGCA,Antibody Capture
+TotalseqB_humanHTO06,TotalseqB_humanHTO06,R2,5PNNNNNNNNNN(BC),GGTTGCCAGATGTCA,Antibody Capture
+TotalseqB_humanHTO07,TotalseqB_humanHTO07,R2,5PNNNNNNNNNN(BC),TGTCTTTCCTGCCAG,Antibody Capture
+TotalseqB_humanHTO08,TotalseqB_humanHTO08,R2,5PNNNNNNNNNN(BC),CTCCTCTGCAATTAC,Antibody Capture
+TotalseqB_humanHTO09,TotalseqB_humanHTO09,R2,5PNNNNNNNNNN(BC),CAGTAGTCACGGTCA,Antibody Capture
+TotalseqB_humanHTO10,TotalseqB_humanHTO10,R2,5PNNNNNNNNNN(BC),ATTGACCCGCGTTAG,Antibody Capture

@@ -1,0 +1,279 @@
+---
+title: "KaryoCreate scRNAseq Experiment Set 2 - HTO Demultiplexing"
+author: "Joey Mays"
+output:
+  html_notebook:
+    code_folding: show
+    toc: yes
+    toc_float:
+      collapsed: no
+      smooth_scroll: yes
+    theme: flatly
+    df_print: paged
+  html_document:
+    code_folding: show
+    toc: yes
+    toc_float:
+      collapsed: no
+      smooth_scroll: yes
+    theme: flatly
+    df_print: paged
+editor_options:
+  chunk_output_type: inline
+---
+
+KaryoCreate scRNA-seq Experiment Set 02.
+
+# Setup
+
+```{r message=FALSE}
+library(Seurat)
+library(knitr)
+library(kableExtra)
+library(dplyr, quietly = T)
+library(here)
+library(ggplot2)
+knitr::opts_chunk$set(tidy = TRUE, fig.align="center")
+```
+
+```{r}
+here::i_am("set02-hto-qc.Rmd")
+exp.folder <- "scrnaseq_set02"
+```
+
+```{r}
+#set seed
+set.seed(123)
+
+#load helper functions
+source(here("copykat-scripts", "helper-functions.R"))
+```
+
+# Import Data
+
+`cellranger` adds the hashtag oligo (HTO) counts to the feature matrix along with the gene expression counts. Column 3 of `features.csv` gives feature type. Since there are 2 feature types (HTO Counts and Gene Expression Counts), `Read10X()` returns a list of 2 matrices so that the gene expression data and HTO data can be handled separately.
+
+`cellranger` outputs two sets of matrices. The "filtered" matrix only includes cell barcodes that pass the automated cutoff i.e. barcodes that most likely represent real cells. The "raw" matrix includes all sequenced cell barcodes, including those from droplets without cells, and is generally used only in advanced analyses.
+
+```{r}
+sc.matrices <- Read10X(here(exp.folder, "filtered_feature_bc_matrix/")) #using the "filtered" version of the matrix
+sc.raw.counts <- sc.matrices$`Gene Expression`
+sc.hto <- sc.matrices$`Antibody Capture`
+```
+
+```{r}
+#correct gene symbols to match HGNC names for annotation
+sc.genes <- HGNChelper::checkGeneSymbols(rownames(sc.raw.counts), unmapped.as.na = F, species = "human")
+summary(sc.genes$x != sc.genes$Suggested.Symbol) #TRUE is number of changed symbols
+rownames(sc.raw.counts) <- sc.genes$Suggested.Symbol
+```
+
+
+```{r}
+#import metadata to match samples to hashtag antibodies
+sample.metadata <- read.csv(here(exp.folder, "set02-scrnaseq-sample-metadata.csv"))
+```
+
+```{r}
+#check HTO names
+rownames(sc.hto)
+```
+
+```{r}
+# replace the HTO names with short IDs from the sample metadata sheet
+meta.merge <- merge(x = rownames(sc.hto), y = sample.metadata, by.x = "x" , by.y = "hto_name", all = T, sort = F)
+rownames(sc.hto) <- meta.merge$hto_short
+rownames(sc.hto)
+```
+
+```{r}
+#sanity check to see if barcodes match between gene expression and HTO matrices, should return all true
+all(colnames(sc.hto) == colnames(sc.raw.counts))
+```
+
+```{r include=FALSE}
+#print the total HTO counts across all barcodes (internal presentation)
+rowSums(sc.hto)
+```
+
+
+```{r}
+#print the total HTO counts across all barcodes
+kable(rowSums(sc.hto), caption = "Read counts per HTO", align = "ll", col.names = "read count", table.attr = "style = \"color: black;\"", format.args = list(big.mark = ",")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered", full_width = F, position = "left"))
+```
+# HTO Demultiplexing
+
+```{r}
+#initialize the Seurat object with the gene expression counts (the "default" assay = "RNA")
+sc <- CreateSeuratObject(counts = sc.raw.counts, project = "copykat")
+sc
+#HTO counts are added as a secondary assay "HTO"
+sc[["HTO"]] <- CreateAssayObject(counts = sc.hto)
+#normalize HTO counts using CLR method
+sc <- NormalizeData(sc, assay = "HTO", normalization.method = "CLR", verbose = F)
+```
+
+```{r results= "hide"}
+sc <- HTODemux(sc, assay = "HTO", positive.quantile = 0.99, verbose = F)
+```
+
+# Results
+
+```{r}
+preqc.class.summary <- summary(as.factor(sc$HTO_classification.global))
+preqc.class.summary <- c(preqc.class.summary, sum(preqc.class.summary))
+names(preqc.class.summary)[4] = "Total"
+pre.qc.table <- data.frame(x = preqc.class.summary, y = round(preqc.class.summary * 100 / sum(preqc.class.summary[1:3]), 1))
+
+kable(pre.qc.table, caption = "Cell counts per HTO class (CellRanger Filtered, Pre-QC)", align = "lll", col.names = c("No. of Cells", "%"), table.attr = "style = \"color: black;\"", format.args = list(big.mark = ",")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered", full_width = F, position = "left"))
+```
+
+```{r include=FALSE}
+#internal
+print(table(sc$HTO_classification.global))
+```
+
+## HTO Heatmap
+
+```{r}
+HTOHeatmap(sc, assay = "HTO")
+```
+
+## Singlet Counts
+```{r include=FALSE}
+#internal
+sc@meta.data %>% filter(HTO_classification.global == "Singlet") %>% group_by(HTO_classification) %>% tally(name = "nCells")
+```
+
+```{r echo=TRUE}
+kable(sc@meta.data %>% filter(HTO_classification.global == "Singlet") %>% group_by(HTO_classification) %>% tally(), table.attr = "style = \"color: black;\"", format.args = list(big.mark = ","),  caption = "Singlets per HTO (CellRanger Filtered, Pre-QC)", align = "ll", col.names = c("HTO", "No. of Cells")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered", full_width = F, position = "left"), )
+```
+
+## Ridge Plot
+
+```{r fig.height=8, fig.width=14, message=FALSE}
+#pull out singlet barcodes
+singlet.bcs <- WhichCells(sc, expression = HTO_classification.global == "Singlet")
+#subset Seurat object by singlet barcodes and group by HTO classification call
+RidgePlot(sc[,singlet.bcs], assay = "HTO", features = rownames(sc[["HTO"]]), ncol = 5, group.by = "HTO_classification")
+```
+
+## Dim Reduction
+
+```{r}
+#reorder hash.ID so it plots in sample order
+sc@meta.data$hash.ID <- factor(sc@meta.data$hash.ID, levels = sort(levels(sc@meta.data$hash.ID)))
+```
+
+```{r}
+# Remove negative cells from the object
+sc.pos <- subset(sc, idents = "Negative", invert = TRUE)
+
+# Calculate a tSNE embedding of the HTO data
+DefaultAssay(sc.pos) <- "HTO"
+sc.pos <- ScaleData(sc.pos, features = rownames(sc.pos), verbose = FALSE)
+sc.pos <- RunPCA(sc.pos, features = rownames(sc.pos), approx = FALSE, verbose = F)
+sc.pos <- RunTSNE(sc.pos, dims = 1:10, perplexity = 100)
+DimPlot(sc.pos)
+```
+
+# QC
+
+```{r}
+DefaultAssay(sc) <- "RNA"
+sc[["percent.mt"]] <- PercentageFeatureSet(sc, pattern = "^MT-")
+```
+
+```{r}
+sc[["nCount_HTO_log"]] <- log1p(sc@meta.data$nCount_HTO)
+```
+
+```{r}
+VlnPlot(sc, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3, group.by = "orig.ident", pt.size = 0.01)
+VlnPlot(sc, features = c("percent.mt"), ncol = 1, group.by = "hash.ID", pt.size = 0.01, log = T) + geom_hline(yintercept = 10, color = "red")
+VlnPlot(sc, features = c("nCount_RNA"), ncol = 1, group.by = "hash.ID", pt.size = 0.01, log = T) + geom_hline(yintercept = 30000, color = "red") + geom_hline(yintercept = 1500, color = "red", linetype = "dashed")
+VlnPlot(sc, features = c("nFeature_RNA"), ncol = 1, group.by = "hash.ID", pt.size = 0.01, log = T) + geom_hline(yintercept = 700, color = "red", linetype = "dashed")
+VlnPlot(sc, features = c("nCount_HTO"), ncol = 1, group.by = "hash.ID", pt.size = 0.01, log = T) + geom_hline(yintercept = 1500, color = "red")
+FeatureScatter(sc, feature1 = "nCount_RNA", feature2 = "nFeature_RNA") + geom_vline(xintercept = 30000, color = "red")
+FeatureScatter(sc, feature1 = "nCount_RNA", feature2 = "nFeature_RNA", group.by = "HTO_classification.global")
+FeatureScatter(sc, feature1 = "nCount_RNA", feature2 = "percent.mt") + geom_hline(yintercept = 10, color = "red") + geom_vline(xintercept = 1500, color = "red", linetype = "dashed")
+FeatureScatter(sc, feature1 = "nCount_RNA", feature2 = "nCount_HTO")
+FeatureScatter(sc, feature1 = "nCount_RNA", feature2 = "nCount_HTO_log")
+FeatureScatter(sc, feature1 = "nCount_RNA", feature2 = "nCount_HTO_log", group.by = "HTO_classification.global")
+VlnPlot(sc, features = c("nCount_HTO"), group.by = "HTO_classification.global", log = T) + NoLegend() + geom_hline(yintercept = 1500, color = "red")
+VlnPlot(sc, features = c("nCount_HTO"), group.by = "HTO_classification.global", log = F, y.max = 5000) + NoLegend() + geom_hline(yintercept = 1500, color = "red")
+```
+
+Samples 7, 8, and 9 had relatively higher mitochondrial count proportions, lower UMI counts, and lower gene counts.
+
+
+HTO threshold is used to exclude called singlets that could represent two cells with the same HTO in one droplet.
+```{r}
+sc.subset <- subset(sc, subset = nFeature_RNA > 700 & nCount_RNA < 30000 & nCount_RNA > 1500 & percent.mt < 10 & nCount_HTO < 1500)
+```
+
+```{r}
+sc.subset
+```
+
+```{r}
+VlnPlot(sc.subset, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3, group.by = "orig.ident", pt.size = 0.01)
+VlnPlot(sc.subset, features = c("percent.mt"), ncol = 1, group.by = "hash.ID", pt.size = 0.01)
+FeatureScatter(sc.subset, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
+FeatureScatter(sc.subset, feature1 = "nCount_RNA", feature2 = "nFeature_RNA", group.by = "HTO_classification.global")
+FeatureScatter(sc.subset, feature1 = "nCount_RNA", feature2 = "percent.mt")
+FeatureScatter(sc.subset, feature1 = "nCount_RNA", feature2 = "nCount_HTO")
+VlnPlot(sc.subset, features = c("nCount_HTO"), group.by = "HTO_classification.global", log = T) + NoLegend()
+VlnPlot(sc.subset, features = c("nCount_HTO"), group.by = "hash.ID", log = T) + NoLegend()
+```
+
+```{r}
+postqc.class.summary <- summary(as.factor(sc.subset$HTO_classification.global))
+postqc.class.summary <- c(postqc.class.summary, sum(postqc.class.summary))
+names(postqc.class.summary)[4] = "Total"
+post.qc.table <- data.frame(x = postqc.class.summary, y = round(postqc.class.summary * 100 / sum(postqc.class.summary[1:3]), 1))
+
+kable(post.qc.table, caption = "Cell counts per HTO class (CellRanger Filtered, Post-QC)", align = "lll", col.names = c("No. of Cells Post-QC", "%"), table.attr = "style = \"color: black;\"", format.args = list(big.mark = ",")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered", full_width = F, position = "left"))
+```
+
+```{r include=FALSE}
+#internal
+print(table(sc.subset$HTO_classification.global))
+```
+
+## HTO Heatmap
+
+```{r}
+HTOHeatmap(sc.subset, assay = "HTO")
+```
+
+## Singlet Counts
+```{r include=FALSE}
+#internal
+sc.subset@meta.data %>% filter(HTO_classification.global == "Singlet") %>% group_by(HTO_classification) %>% tally(name = "nCells")
+```
+
+```{r echo=TRUE}
+kable(sc.subset@meta.data %>% filter(HTO_classification.global == "Singlet") %>% group_by(HTO_classification) %>% tally(), table.attr = "style = \"color: black;\"", format.args = list(big.mark = ","),
+      caption = "Singlets per HTO (CellRanger Filtered, Post-QC)", align = "ll", col.names = c("HTO", "No. of Cells")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered", full_width = F, position = "left"), )
+```
+
+# Wrap-Up
+
+## Save Object
+
+```{r}
+#save object for further analysis
+saveRDS(sc.subset, file = "./sc.Seurat.HTOdeconvolved.filtered.RDS")
+```
+
+## sessionInfo()
+
+```{r}
+sessioninfo::session_info()
+```
