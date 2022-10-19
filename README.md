@@ -18,6 +18,24 @@ Hashtag and sample metadata for experiment sets 01 and 02 can be found in `/meta
 
 Scripts can be found in the `/scripts/` folder.
 
+Software dependencies:
+- [10X Genomics cellranger](https://support.10xgenomics.com/single-cell-gene-expression/software/pipelines/latest/what-is-cell-ranger) version 6+
+- R version 4.1+
+
+R package dependencies:
+- argparse
+- SeuratObject
+- biomaRt
+- dplyr
+- tidyr
+- stringr
+- knitr
+- kableExtra
+- here
+- ggplot2
+- HGNChelper
+- [copyKat v1.0.5](https://github.com/navinlabcode/copykat)
+
 ### cellranger
 
 10X Genomics libraries were sequenced on an Illumina sequencer. Output is a series of `.fastq` files for both the gene expression (GEX) library and hashtag oligo (HTO) library. `cellranger count` from 10X's [cellranger package](https://support.10xgenomics.com/single-cell-gene-expression/software/pipelines/latest/what-is-cell-ranger) to align the sequencing reads for the libraries and deconvolute single cells. Example library and feature reference files can be found in the `/metadata/` folder. The `HTO-ref.csv` file is set up for the [10 TotalSeqB Human Hashtag sequences](https://www.biolegend.com/en-us/totalseq) from BioLegend.
