@@ -33,6 +33,8 @@ getGeneMetadata <- function(gene.list, name.type = "symbol", sex.chr = c("X","Y"
                                     mart = mart, 
                                     values = list("chromosome_name"=chr_list, 
                                                   "hgnc_symbol"=gene.list))
+    
+    gene.metadata <- gene.metadata[!duplicated(gene.metadata[,"hgnc_symbol"]),]
   }
   
   if(name.type == "ensembl"){
@@ -43,9 +45,10 @@ getGeneMetadata <- function(gene.list, name.type = "symbol", sex.chr = c("X","Y"
                                     mart = mart, 
                                     values = list("chromosome_name"=chr_list, 
                                                   "ensembl_gene_id"=gene.list))
+    
+    gene.metadata <- gene.metadata[!duplicated(gene.metadata[,"ensembl_gene_id"]),]
   }
   
-  gene.metadata <- gene.metadata[!duplicated(gene.metadata[,"hgnc_symbol"]),]
   gene.metadata <- gene.metadata[order(gene.metadata$chromosome_name, gene.metadata$start_position),]
   
   return(gene.metadata)
