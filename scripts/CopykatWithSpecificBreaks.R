@@ -140,27 +140,6 @@ copykatSimpleNormalize <- function(rawmat=rawdata, id.type="S", cell.line="no",
         anno.mat <- anno.mat[-toRev, ]
     }
 
-    ### FILTERING 2
-    #Removing filtering step, becomes problematic with addition of Y chromosome annotation.
-    #Could be re-implemented in the future, but probably unnecessary since cells with low gene expression levels overall are filtered out during initial QC
-
-    ## filters out cells with less than 5 genes annotated per chromosome
-    # ToRemov2 <- NULL
-    # for(i in 8:ncol(anno.mat)){
-    #     cell <- cbind(anno.mat$chromosome_name, anno.mat[,i])
-    #     cell <- cell[cell[,2]!=0,]
-    #     if(length(as.numeric(cell)) < 5){
-    #         rm <- colnames(anno.mat)[i]
-    #         ToRemov2 <- c(ToRemov2, rm)
-    #     } else if(length(rle(cell[,1])$length)<24|min(rle(cell[,1])$length)< ngene.chr){
-    #         rm <- colnames(anno.mat)[i]
-    #         ToRemov2 <- c(ToRemov2, rm)
-    #     }
-    # }
-    #
-    # if(length(ToRemov2)==(ncol(anno.mat)-7)) stop("all cells are filtered")
-    # if(length(ToRemov2)>0){anno.mat <-anno.mat[, -which(colnames(anno.mat) %in% ToRemov2)]}
-
     ### NORMALIZATION
     #Freeman-Tukey normalization is used as default, I've added a few more options to try.
 
@@ -241,20 +220,6 @@ copykatSimpleNormalize <- function(rawmat=rawdata, id.type="S", cell.line="no",
         #basel is median normalized exp level of each gene from control cells
         basel <- apply(norm.mat.smooth[, which(colnames(norm.mat.smooth) %in% norm.cell.names)],1,median); print("baseline is from known input")
 
-        #prelim clustering below is used for breakpoint generation, removed here
-
-        #d <- parallelDist::parDist(t(norm.mat.smooth),threads =n.cores, method="euclidean")
-        #km <- 6
-        # fit <- hclust(d, method="ward.D2")
-        # CL <- cutree(fit, km) #creates vector from full normalized matrix with 6 groups, vector reports group membership for each cell
-        # while(!all(table(CL)>5)){ #reduce number of groups iteratively until they all have at least 5 cells in each or the number of groups reaches 2
-        #     km <- km -1
-        #     CL <- cutree(fit, k=km)
-        #     if(km==2){
-        #         break
-        #     }
-        # }
-
         WNS <- "run with known normal"
         preN <- norm.cell.names
 
@@ -291,32 +256,6 @@ copykatSimpleNormalize <- function(rawmat=rawdata, id.type="S", cell.line="no",
     #keeps genes with expression in at least 10% (UP.DR default) of cells; anno.mat is same numbers of rawmat3
     anno.mat2 <- anno.mat[which(DR2>=UP.DR), ]
     print(paste(nrow(norm.mat.relat)," genes past UP.DR filtering", sep=""))
-
-
-    #another round of filtering to remove cells with less than 5 genes (default) per chr for anno.mat2.
-    #Removing filtering step, becomes problematic with addition of Y chromosome annotation.
-    #Could be re-implemented in the future, but probably unnecessary since cells with low gene expression levels overall are filtered out during initial QC
-
-    # ToRemov3 <- NULL
-    # for(i in 8:ncol(anno.mat2)){
-    #     cell <- cbind(anno.mat2$chromosome_name, anno.mat2[,i])
-    #     cell <- cell[cell[,2]!=0,]
-    #     if(length(as.numeric(cell))< 5){
-    #         rm <- colnames(anno.mat2)[i]
-    #         ToRemov3 <- c(ToRemov3, rm)
-    #     } else if(length(rle(cell[,1])$length)<23|min(rle(cell[,1])$length)< ngene.chr){
-    #         rm <- colnames(anno.mat2)[i]
-    #         ToRemov3 <- c(ToRemov3, rm)
-    #     }
-    #     i<- i+1
-    # }
-    #
-    # if(length(ToRemov3)==ncol(norm.mat.relat)) stop ("all cells are filtered")
-    #
-    # if(length(ToRemov3)>0){
-    #     norm.mat.relat <-norm.mat.relat[, -which(colnames(norm.mat.relat) %in% ToRemov3)]
-    #     # print(paste("filtered out ", length(ToRemov3), " cells with less than ",ngene.chr, " genes per chr", sep=""))
-    # }
 
     #re-annotate
         if(!use.package.annotation == F & is.null(prefetched.gene.annotations)){
