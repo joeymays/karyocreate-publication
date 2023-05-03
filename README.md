@@ -1,8 +1,8 @@
 # KaryoCreate Analysis
-Codebook for analyses in **Bosco et al 2022**:
+Codebook for analyses in **Bosco et al 2023**:
 
-KaryoCreate: a new CRISPR-based technology to generate chromosome-specific aneuploidy by targeting human centromeres. bioRxiv.
-https://doi.org/10.1101/2022.09.27.509580
+KaryoCreate: A CRISPR-based technology to study chromosome-specific aneuploidy by targeting human centromeres. Cell 2023.
+https://doi.org/10.1016/j.cell.2023.03.029
 
 # scRNAseq Analysis
 
